@@ -13,9 +13,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--config-path", type=str, required=True, help="실행에 필요한 정보들이 담긴 config 파일 경로")
 
 
-def make_person_dict(notion_api_token: str, notion_version: str):
+def make_person_dict(notion_api_token: str, notion_version: str) -> Dict[str, str]:
     """
     workspace 내 user들의 이름과 id를 mapping 하는 dictionary를 만들어 반환합니다.
+
+    :param notion_api_token: notion api 인증에 필요한 token
+    :param notion_version: notion api의 version
+    :return: user name과 user id가 매칭되어있는 dict
     """
     user_dict = {}
     response = requests.get(
@@ -32,9 +36,12 @@ def make_person_dict(notion_api_token: str, notion_version: str):
     return user_dict
 
 
-def retrieve_databases(cfg) -> json:
+def retrieve_databases(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
     원하는 조건(체크인 문서)에 맞춰 필터링 된 Database 중 가장 최근에 생성된 page 1개에 대한 정보를 가져옵니다.
+
+    :param cfg: 실행에 필요한 여러 정보가 담긴 json
+    :return: json 형식의 최근 작성된 체크인 문서에 대한 정보
     """
     url = f"https://api.notion.com/v1/databases/{cfg['database_id']}/query"
     filter = {
@@ -57,16 +64,20 @@ def retrieve_databases(cfg) -> json:
     return response.json()
 
 
-def check_already_made(cfg):
+def check_already_made(cfg) -> Tuple(bool, Any, Any, Any):
     """
     retrieve_databases 함수를 통해 가장 최근에 만들어진 문서에 대한 정보를 가져옵니다.
-    이후 만들어진 지 1주일이 되지 않았다면 False를 , 1주일이 되었다면 True를 반환합니다.
+    이후 만들어진 지 1주일이 되지 않았다면 False를 반환합닏다.
+    만약 1주일이 되었다면 True와 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기를 반환합니다.
+
+    :param cfg: 실행에 필요한 여러 정보가 담긴 json
+    :return: Tuple(작성 여부, 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기)
     """
     data = retrieve_databases(cfg)["results"][0]
 
     latest_created_time = datetime.strptime(data["created_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
     created_time_diff = (datetime.today() - latest_created_time).days
-    if created_time_diff < 0:
+    if created_time_diff < 7:
         # 최근 체크인 문서가 작성된 지 일주일도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
         return True, None, None
 
@@ -87,6 +98,12 @@ def create_pages(
     새로운 체크인 문서를 생성합니다.
     체크인 문서의 Quarter는 이전 체크인 문서의 Quarter를 , 제목의 #n 은 이전 체크인 문서의 인덱스+1 이 됩니다.
     새로 생성한 체크인 문서의 url을 리턴해줍니다.
+
+    :param cfg: 실행에 필요한 여러 정보가 담긴 json
+    :param latest_checkin_day: 가장 최근 작성된 체크인 문서의 날짜
+    :param latest_index: 가장 최근 작성된 체크인 문서의 인덱스
+    :param latest_quater: 가장 최근 작성된 체크인 문서의 분기 정보
+    :return: 새로 작성된 페이지의 url
     """
     # 주최자는 회의록 작성자가 될 수 없습니다.
     user_name2id = make_person_dict(cfg["notion_api_token"], cfg["notion_version"])

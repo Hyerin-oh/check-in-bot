@@ -1,14 +1,9 @@
-# Python Project Setup
+# 사내 체크인 봇
+매주 진행되는 체크인 문서 작성을 돕는 슬랙봇입니다.
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![cosmoquester](https://circleci.com/gh/cosmoquester/python3-template.svg?style=svg)](https://app.circleci.com/pipelines/github/cosmoquester/python3-template)
+매주 수요일 11시마다 실행됩니다.
 
-- This repository is template for my python project
-
-## Things to be changed
-
-- "README.md" file contents
-- "setup.py" file contents
-- "sample_package" directory name
-- ".circleci/config.yml" file contents
+```
+crontab -e
+0 11 * * 3 python3 run.py --config-path CONFIG_PATH
+```
