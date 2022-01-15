@@ -1,0 +1,13 @@
+{
+    "slack_bot_token": "slack_bot_token",
+    "notion_api_token": "notion_api_token",
+    "database_id": "database_id",
+    "notion_version": "2021-08-16",
+    "channel_id": "slack_chnnel_id",
+    "team_name": "team_name",
+    "base_title": "check-in base title",
+    "host": "주최자",
+    "people_list": [
+        "참여 명단"
+    ]
+}
