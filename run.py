@@ -4,7 +4,7 @@ import logging
 import random
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import requests
 from slack_sdk import WebClient
@@ -64,7 +64,7 @@ def retrieve_databases(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return response.json()
 
 
-def check_already_made(cfg) -> Tuple(bool, Any, Any, Any):
+def check_already_made(cfg) -> Tuple[bool, Any, Any, Any]:
     """
     retrieve_databases 함수를 통해 가장 최근에 만들어진 문서에 대한 정보를 가져옵니다.
     이후 만들어진 지 1주일이 되지 않았다면 False를 반환합닏다.
@@ -79,7 +79,7 @@ def check_already_made(cfg) -> Tuple(bool, Any, Any, Any):
     created_time_diff = (datetime.today() - latest_created_time).days
     if created_time_diff < 7:
         # 최근 체크인 문서가 작성된 지 일주일도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
-        return True, None, None
+        return True, None, None, None
 
     latest_title = data["properties"]["이름"]["title"][0]["plain_text"]
     latest_quater = data["properties"]["Quarter"]["multi_select"][0]["name"]
