@@ -64,28 +64,29 @@ def retrieve_databases(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return response.json()
 
 
-def check_already_made(cfg) -> Tuple[bool, Any, Any, Any]:
+def check_already_made(cfg) -> Tuple[bool, Any, Any, Any, Any]:
     """
     retrieve_databases 함수를 통해 가장 최근에 만들어진 문서에 대한 정보를 가져옵니다.
-    이후 만들어진 지 1주일이 되지 않았다면 False를 반환합닏다.
+    이후 만들어진 지 1주일이 되지 않았다면 False와 최근 만들어진 문서의 url를 반환합닏다.
     만약 1주일이 되었다면 True와 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기를 반환합니다.
 
     :param cfg: 실행에 필요한 여러 정보가 담긴 json
-    :return: Tuple(작성 여부, 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기)
+    :return: Tuple(작성 여부, 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기, 최신 문서 url)
     """
     data = retrieve_databases(cfg)["results"][0]
-
     latest_created_time = datetime.strptime(data["created_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
     created_time_diff = (datetime.today() - latest_created_time).days
+
     if created_time_diff < 7:
         # 최근 체크인 문서가 작성된 지 일주일도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
-        return True, None, None, None
+        latest_url = data["url"]
+        return True, None, None, None, latest_url
 
     latest_title = data["properties"]["제목"]["title"][0]["plain_text"]
     latest_quater = data["properties"]["Quarter"]["select"]["name"]
     latest_checkin_day = re.search("[0-9]{6}", latest_title).group()
     latest_index = int(re.search("#([0-9]{1,})", latest_title).group(1))
-    return False, latest_checkin_day, latest_index, latest_quater
+    return False, latest_checkin_day, latest_index, latest_quater, None
 
 
 def create_pages(
@@ -166,11 +167,11 @@ def main(args: argparse.Namespace):
     client = WebClient(token=cfg["slack_bot_token"])
 
     logging.info("[+] 일주일 내 이미 만들어진 문서가 있는 지 확인합니다.")
-    made, latest_checkin_day, latest_index, latest_quater = check_already_made(cfg)
+    made, latest_checkin_day, latest_index, latest_quater, latest_url = check_already_made(cfg)
     if made:
         logging.info("[+] 일주일 내 이미 만들어진 문서가 존재하므로 체크인 문서를 새로 생성하지 않습니다.")
         response = client.chat_postMessage(
-            channel=cfg["channel_id"], text=f"이번 주 {cfg['team_name']} 체크인 문서는 별도로 생성되지 않았습니다."
+            channel=cfg["channel_id"], text=f"이번 주 {cfg['team_name']} 체크인 문서는 별도로 생성되지 않았습니다. \n{latest_url}"
         )
         response.validate()
 
