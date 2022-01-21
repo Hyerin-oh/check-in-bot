@@ -81,8 +81,8 @@ def check_already_made(cfg) -> Tuple[bool, Any, Any, Any]:
         # 최근 체크인 문서가 작성된 지 일주일도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
         return True, None, None, None
 
-    latest_title = data["properties"]["이름"]["title"][0]["plain_text"]
-    latest_quater = data["properties"]["Quarter"]["multi_select"][0]["name"]
+    latest_title = data["properties"]["제목"]["title"][0]["plain_text"]
+    latest_quater = data["properties"]["Quarter"]["select"]["name"]
     latest_checkin_day = re.search("[0-9]{6}", latest_title).group()
     latest_index = int(re.search("#([0-9]{1,})", latest_title).group(1))
     return False, latest_checkin_day, latest_index, latest_quater
@@ -115,9 +115,9 @@ def create_pages(
     payload = {
         "parent": {"database_id": cfg["database_id"]},
         "properties": {
-            "이름": {"title": [{"type": "text", "text": {"content": title}}]},
+            "제목": {"title": [{"type": "text", "text": {"content": title}}]},
             "날짜": {"date": {"start": check_in_day.strftime(("%Y-%m-%d"))}},
-            "Quarter": {"multi_select": [{"name": latest_quater}]},
+            "Quarter": {"select": {"name": latest_quater}},
             "주최자": {"people": [{"object": "user", "id": user_name2id[cfg["host"]]}]},
             "참석자": {"people": [{"object": "user", "id": user_name2id[id]} for id in cfg["people_list"]]},
             "회의록 작성자": {"people": [{"object": "user", "id": random.choice(writer_list)}]},
@@ -128,7 +128,7 @@ def create_pages(
     response = requests.post(
         "https://api.notion.com/v1/pages",
         headers={
-            f"Authorization": f"Bearer {cfg['notion_api_token']}",
+            "Authorization": f"Bearer {cfg['notion_api_token']}",
             "Notion-Version": cfg["notion_version"],
         },
         json=payload,
