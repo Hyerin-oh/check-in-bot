@@ -76,6 +76,9 @@ def check_already_made(base_cfg: Dict[str, Any], team_cfg: Dict[str, Any]) -> Tu
     :return: Tuple(작성 여부, 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기, 최신 문서 url)
     """
     latest_checkin_info = retrieve_databases(base_cfg, team_cfg["team_name"])
+    if not latest_checkin_info["results"]:
+        return False, None, None, None, None
+
     latest_checkin_data = latest_checkin_info["results"][0]
     latest_created_time = datetime.strptime(latest_checkin_data["created_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
     created_time_diff = (datetime.today() - latest_created_time).days
@@ -188,7 +191,16 @@ def main(args: argparse.Namespace):
         logging.info("[+] 일주일 내 이미 만들어진 문서가 있는 지 확인합니다.")
         made, latest_checkin_day, latest_index, latest_quater, latest_url = check_already_made(base_cfg, team_cfg)
 
-        if made:
+        if all([latest_checkin_day, latest_index, latest_quater]):
+            logging.info("[+] 일주일 내 이미 만들어진 문서가 존재하지 않으므로 체크인 문서를 새로 생성합니다.")
+            new_page_url = create_pages(base_cfg, team_cfg, latest_checkin_day, latest_index, latest_quater)
+            response = client.chat_postMessage(
+                channel=team_cfg["channel_id"],
+                text=f"이번 주 {team_cfg['team_name']} 체크인 문서입니다. template을 클릭해 작성해주세요!\n{new_page_url}",
+            )
+            response.validate()
+
+        elif latest_url:
             logging.info("[+] 일주일 내 이미 만들어진 문서가 존재하므로 체크인 문서를 새로 생성하지 않습니다.")
             response = client.chat_postMessage(
                 channel=team_cfg["channel_id"],
@@ -197,11 +209,10 @@ def main(args: argparse.Namespace):
             response.validate()
 
         else:
-            logging.info("[+] 일주일 내 이미 만들어진 문서가 존재하지 않으므로 체크인 문서를 새로 생성합니다.")
-            new_page_url = create_pages(base_cfg, team_cfg, latest_checkin_day, latest_index, latest_quater)
+            logging.info("[+] 같은 제목 혹은 필터를 가진 체크인 문서가 존재하지 않습니다.")
             response = client.chat_postMessage(
                 channel=team_cfg["channel_id"],
-                text=f"이번 주 {team_cfg['team_name']} 체크인 문서입니다. template을 클릭해 작성해주세요!\n{new_page_url}",
+                text=f"{team_cfg['base_title']}와 같은 제목을 가진 체크인 문서가 존재하지 않습니다. 첫 체크인 문서는 수동으로 만들어주세요.",
             )
             response.validate()
 
