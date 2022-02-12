@@ -1,13 +1,30 @@
 {
-    "slack_bot_token": "slack_bot_token",
-    "notion_api_token": "notion_api_token",
-    "database_id": "database_id",
-    "notion_version": "2021-08-16",
-    "channel_id": "slack_chnnel_id",
-    "team_name": "team_name",
-    "base_title": "check-in base title",
-    "host": "주최자",
-    "people_list": [
-        "참여 명단"
+    "base": {
+        "slack_bot_token": "슬랙봇 토큰",
+        "notion_api_token": "노션 API 토큰",
+        "database_id": "회의록 DB ID",
+        "notion_version": "노션 버전"
+    },
+    "team": [
+        {
+            "channel_id": "슬랙 채널 아이디",
+            "team_name": "팀 명",
+            "base_title": "체크인 문서 기본 제목",
+            "host": "주최자명",
+            "people_list": [
+                "참가자 1",
+                "참가자 2"
+            ]
+        },
+        {
+            "channel_id": "슬랙 채널 아이디",
+            "team_name": "팀 명",
+            "base_title": "체크인 문서 기본 제목",
+            "host": "주최자명",
+            "people_list": [
+                "참가자 1",
+                "참가자 2"
+            ]
+        }
     ]
 }
