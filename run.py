@@ -68,8 +68,8 @@ def retrieve_databases(base_cfg: Dict[str, Any], team_name: str) -> Dict[str, An
 def check_already_made(base_cfg: Dict[str, Any], team_cfg: Dict[str, Any]) -> Tuple[bool, Any, Any, Any, Any]:
     """
     retrieve_databases 함수를 통해 가장 최근에 만들어진 문서에 대한 정보를 가져옵니다.
-    이후 만들어진 지 1주일이 되지 않았다면 False와 최근 만들어진 문서의 url를 반환합닏다.
-    만약 1주일이 되었다면 True와 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기를 반환합니다.
+    이후 만들어진 날짜와 오늘의 차이가 day_threshold 보다 크다면 False와 최근 만들어진 문서의 url를 반환합닏다.
+    만약 day_threshold 보다 작다면 True와 가장 마지막으로 작성된 체크인 날짜, 인덱스, 분기를 반환합니다.
 
     :param base_cfg: 팀과는 상관없이 실행에 필요한 토큰 등의 정보들이 담긴 config
     :param team_cfg: 팀 별 체크인 문서 생성에 필요한 정보들이 담긴 config
@@ -83,8 +83,8 @@ def check_already_made(base_cfg: Dict[str, Any], team_cfg: Dict[str, Any]) -> Tu
     latest_created_time = datetime.strptime(latest_checkin_data["created_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
     created_time_diff = (datetime.today() - latest_created_time).days
 
-    if created_time_diff < 7:
-        # 최근 체크인 문서가 작성된 지 일주일도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
+    if created_time_diff < base_cfg["day_threshold"]:
+        # 최근 체크인 문서가 작성된 지 day_threshold도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
         latest_url = latest_checkin_data["url"]
         return True, None, None, None, latest_url
 
@@ -116,8 +116,8 @@ def create_pages(
     """
     # 주최자는 회의록 작성자가 될 수 없습니다.
     user_name2id = make_person_dict(base_cfg["notion_api_token"], base_cfg["notion_version"])
-    writer_list = [user_name2id[name] for name in team_cfg["people_list"]]
-    writer_list.remove(user_name2id[team_cfg["host"]])
+    candidate_name_list = list(set(team_cfg["participation"]) - set(team_cfg["blacklist"]))
+    candidate_id_list = [user_name2id[name] for name in candidate_name_list]
 
     check_in_day = datetime.strptime(latest_checkin_day, "%y%m%d") + timedelta(weeks=1)
     title = f"[{check_in_day.strftime('%y%m%d')}] {team_cfg['base_title']}{latest_index + 1}"
@@ -128,8 +128,8 @@ def create_pages(
             "날짜": {"date": {"start": check_in_day.strftime(("%Y-%m-%d"))}},
             "Quarter": {"select": {"name": latest_quater}},
             "주최자": {"people": [{"object": "user", "id": user_name2id[team_cfg["host"]]}]},
-            "참석자": {"people": [{"object": "user", "id": user_name2id[id]} for id in team_cfg["people_list"]]},
-            "회의록 작성자": {"people": [{"object": "user", "id": random.choice(writer_list)}]},
+            "참석자": {"people": [{"object": "user", "id": user_name2id[id]} for id in team_cfg["participation"]]},
+            "회의록 작성자": {"people": [{"object": "user", "id": random.choice(candidate_id_list)}]},
             "Tags": {"multi_select": [{"name": "OKR"}, {"name": team_cfg["team_name"]}]},
             "회의 유형": {"multi_select": [{"name": "Check-in"}]},
         },
@@ -163,19 +163,8 @@ def main(args: argparse.Namespace):
 
     # config 내 필요한 정보들이 들어있는 지 확인.
     necessary_key = {
-        "base": [
-            "slack_bot_token",
-            "notion_api_token",
-            "database_id",
-            "notion_version",
-        ],
-        "team": [
-            "channel_id",
-            "team_name",
-            "base_title",
-            "host",
-            "people_list",
-        ],
+        "base": ["slack_bot_token", "notion_api_token", "database_id", "notion_version", "day_threshold"],
+        "team": ["channel_id", "team_name", "base_title", "host", "participation", "blacklist"],
     }
 
     for key in necessary_key["base"]:
