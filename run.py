@@ -1,8 +1,8 @@
 import argparse
 import json
 import logging
+import math
 import random
-import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, Tuple
 
@@ -11,6 +11,19 @@ from slack_sdk import WebClient
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config-path", type=str, required=True, help="실행에 필요한 정보들이 담긴 config 파일 경로")
+
+
+def get_period() -> str:
+    today = datetime.now().date()
+    year = today.year
+    period = int(math.floor((today.month - 1) / 3)) + 1
+    return f"{year}년 {period}분기"
+
+
+def parse_url(url: str, prefix: str = "https://www.notion.so/") -> Tuple[str, int]:
+    _, value = url.split(prefix)
+    checkin_day, _, _, _, _, _, index, _ = value.split("-")
+    return checkin_day, int(index)
 
 
 def make_person_dict(notion_api_token: str, notion_version: str) -> Dict[str, str]:
@@ -47,8 +60,8 @@ def retrieve_databases(base_cfg: Dict[str, Any], team_name: str) -> Dict[str, An
     url = f"https://api.notion.com/v1/databases/{base_cfg['database_id']}/query"
     filter = {
         "and": [
-            {"property": "Tags", "multi_select": {"contains": team_name}},
-            {"property": "Tags", "multi_select": {"contains": "OKR"}},
+            {"property": "태그", "multi_select": {"contains": team_name}},
+            {"property": "태그", "multi_select": {"contains": "OKR"}},
             {"property": "회의 유형", "multi_select": {"contains": "Check-in"}},
         ]
     }
@@ -81,17 +94,15 @@ def check_already_made(base_cfg: Dict[str, Any], team_cfg: Dict[str, Any]) -> Tu
 
     latest_checkin_data = latest_checkin_info["results"][0]
     latest_created_time = datetime.strptime(latest_checkin_data["created_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    latest_url = latest_checkin_data["url"]
     created_time_diff = (datetime.today() - latest_created_time).days
-
     if created_time_diff < base_cfg["day_threshold"]:
         # 최근 체크인 문서가 작성된 지 day_threshold도 되지 않았다는 것은 사람이 직접 만들었다는 뜻으로 작성하지 않음.
-        latest_url = latest_checkin_data["url"]
         return True, None, None, None, latest_url
 
-    latest_title = latest_checkin_data["properties"]["제목"]["title"][0]["plain_text"]
-    latest_quater = latest_checkin_data["properties"]["Quarter"]["select"]["name"]
-    latest_checkin_day = re.search("[0-9]{6}", latest_title).group()
-    latest_index = int(re.search("#([0-9]{1,})", latest_title).group(1))
+    latest_checkin_day, latest_index = parse_url(latest_url)
+    latest_quater = latest_checkin_data["properties"]["Quarter"]["id"]
+
     return False, latest_checkin_day, latest_index, latest_quater, None
 
 
@@ -126,22 +137,26 @@ def create_pages(
         "properties": {
             "제목": {"title": [{"type": "text", "text": {"content": title}}]},
             "날짜": {"date": {"start": check_in_day.strftime(("%Y-%m-%d"))}},
-            "Quarter": {"select": {"name": latest_quater}},
+            "Quarter": {"select": {"name": get_period()}},
             "주최자": {"people": [{"object": "user", "id": user_name2id[team_cfg["host"]]}]},
             "참석자": {"people": [{"object": "user", "id": user_name2id[id]} for id in team_cfg["participation"]]},
             "회의록 작성자": {"people": [{"object": "user", "id": random.choice(candidate_id_list)}]},
-            "Tags": {"multi_select": [{"name": "OKR"}, {"name": team_cfg["team_name"]}]},
+            "태그": {"multi_select": [{"name": "OKR"}, {"name": team_cfg["team_name"]}]},
             "회의 유형": {"multi_select": [{"name": "Check-in"}]},
         },
+        "icon": {"type": "emoji", "emoji": "🎪"},
     }
     response = requests.post(
         "https://api.notion.com/v1/pages",
         headers={
+            "Accept": "application/json",
             "Authorization": f"Bearer {base_cfg['notion_api_token']}",
             "Notion-Version": base_cfg["notion_version"],
         },
         json=payload,
     )
+    print(response.json())
+
     response.raise_for_status()
 
     return response.json()["url"]
