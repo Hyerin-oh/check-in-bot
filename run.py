@@ -140,7 +140,7 @@ def create_pages(
             "Quarter": {"select": {"name": get_period()}},
             "주최자": {"people": [{"object": "user", "id": user_name2id[team_cfg["host"]]}]},
             "참석자": {"people": [{"object": "user", "id": user_name2id[id]} for id in team_cfg["participation"]]},
-            "회의록 작성자": {"people": [{"object": "user", "id": random.choice(candidate_id_list)}]},
+            "작성자": {"people": [{"object": "user", "id": random.choice(candidate_id_list)}]},
             "태그": {"multi_select": [{"name": "OKR"}, {"name": team_cfg["team_name"]}]},
             "회의 유형": {"multi_select": [{"name": "Check-in"}]},
         },
